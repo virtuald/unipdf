@@ -520,7 +520,7 @@ func (c *Creator) finalize() error {
 		// Draw blocks to pages.
 		block, ok := c.pageBlocks[page]
 		if !ok {
-			return errors.New("could not find page block")
+			continue
 		}
 		if err := block.drawToPage(page); err != nil {
 			return err
