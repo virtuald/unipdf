@@ -6,7 +6,9 @@
 package model
 
 import (
+	"bytes"
 	"errors"
+	"io"
 	"io/ioutil"
 	"strings"
 
@@ -379,14 +381,35 @@ func (font *pdfFontSimple) ToPdfObject() core.PdfObject {
 	return font.container
 }
 
+// NewPdfFontFromTTF loads a TTF font and returns a PdfFont type that can be used in text
+// styling functions.
+// Uses a WinAnsiTextEncoder and loads only character codes 32-255.
+func NewPdfFontFromTTF(r io.Reader) (*PdfFont, error) {
+	ttfBytes, err := ioutil.ReadAll(r)
+	if err != nil {
+		common.Log.Debug("ERROR: Unable to read font contents: %v", err)
+		return nil, err
+	}
+	return newPdfFontFromTtfBytes(ttfBytes)
+}
+
 // NewPdfFontFromTTFFile loads a TTF font and returns a PdfFont type that can be used in text
 // styling functions.
 // Uses a WinAnsiTextEncoder and loads only character codes 32-255.
 func NewPdfFontFromTTFFile(filePath string) (*PdfFont, error) {
+	ttfBytes, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		common.Log.Debug("ERROR: Unable to read file contents: %v", err)
+		return nil, err
+	}
+	return newPdfFontFromTtfBytes(ttfBytes)
+}
+
+func newPdfFontFromTtfBytes(ttfBytes []byte) (*PdfFont, error) {
 	const minCode = textencoding.CharCode(32)
 	const maxCode = textencoding.CharCode(255)
 
-	ttf, err := fonts.TtfParseFile(filePath)
+	ttf, err := fonts.TtfParse(bytes.NewReader(ttfBytes))
 	if err != nil {
 		common.Log.Debug("ERROR: loading ttf font: %v", err)
 		return nil, err
@@ -456,12 +479,6 @@ func NewPdfFontFromTTFFile(filePath string) (*PdfFont, error) {
 		k * float64(ttf.Ymin), k * float64(ttf.Xmax), k * float64(ttf.Ymax)})
 	descriptor.ItalicAngle = core.MakeFloat(float64(ttf.ItalicAngle))
 	descriptor.MissingWidth = core.MakeFloat(k * float64(ttf.Widths[0]))
-
-	ttfBytes, err := ioutil.ReadFile(filePath)
-	if err != nil {
-		common.Log.Debug("ERROR: Unable to read file contents: %v", err)
-		return nil, err
-	}
 
 	stream, err := core.MakeStream(ttfBytes, core.NewFlateEncoder())
 	if err != nil {
